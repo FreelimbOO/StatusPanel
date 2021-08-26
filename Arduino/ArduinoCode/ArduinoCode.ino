@@ -55,12 +55,11 @@ uint32_t read_32(File fp) {
   uint32_t high;
   low = read_16(fp);
   high = read_16(fp);
-  return (high << 8) | low;
+  return (high << 16) | low;
 }
 
 bool analysis_bpm_header(File fp) {
-  if (read_16(fp) != 0x4D42)
-  {
+  if (read_16(fp) != 0x4D42) {
     return false;
   }
   //get bpm size
@@ -121,21 +120,11 @@ void setupSD() { //Init SD_Card
 /***** Graphic presentation of sensor readings. *****/
 
 boolean newData = false;
-byte ledPin = 13;   // the onboard LED
 float values[6];
 float prevValues[6];
 int nonzeroCounter = 0; // Count how many nonzeros are received.
 uint16_t colorsCPU[5] = {MAGENTA, YELLOW, DARK_GREEN, RED, BLUE};
 uint16_t colorsGPU[5] = {GREEN, GREEN_BLUE, DARK_GREEN,  BLUE, BLACK};
-
-typedef struct st_c {
-  int x;
-  int y;
-  int r;
-  uint16_t c;
-} cntr;
-
-cntr prevC[2];
 
 uint16_t rainbow[15] = {
   0x02FF, 0x04BF, 0x061F,
@@ -145,9 +134,16 @@ uint16_t rainbow[15] = {
   0xFAE0, 0xF980, 0xF800
 };
 
-float memHistory[25];
-float gddrHistory[25];
-boolean enteredS3 = false;
+typedef struct st_c {
+  int x;
+  int y;
+  int r;
+  uint16_t c;
+} cntr;
+cntr prevC[2];
+
+
+
 
 struct st_c drawCircules(int sensorType, int cx, int cy, int devi, uint16_t colors[5]) {
   int radius = 140;
@@ -211,7 +207,7 @@ void drawTemp(int sensorType, struct st_c c, int devi) {
   values[sensorType] = 0.0;
 }
 
-void updateSensor(int censorType, int x, int y, int16_t color) {
+void updateNumber(int censorType, int x, int y, int16_t color) {
   my_lcd.Set_Text_colour(color);
   my_lcd.Set_Text_Size(6);
 
@@ -225,6 +221,8 @@ void updateSensor(int censorType, int x, int y, int16_t color) {
   newData = false;
 }
 
+float memHistory[25];
+float gddrHistory[25];
 void plotHist(int sensorType, int x, int y, uint16_t c) {
   int width = 50, height = 100;
   int lbx = x, lby = y;
@@ -269,15 +267,15 @@ void updateStat() {
   int halfw = 0.85 * prevC[0].r, halfh = 0.5 * prevC[0].r;
 
   drawTemp(CPU_TEMP, prevC[0], 6);
-  updateSensor(CPU_LOAD, prevC[0].x - halfw + 12, prevC[0].y - 15, WHITE);
+  updateNumber(CPU_LOAD, prevC[0].x - halfw + 12, prevC[0].y - 15, WHITE);
   plotHist(MEM, prevC[0].x + halfw + 16 + 40, prevC[0].y - 15 - 70, MAGENTA);
 
   drawTemp(GPU_TEMP, prevC[1], 6);
-  updateSensor(GPU_LOAD, prevC[1].x - halfw + 12, prevC[1].y - 15, CYAN);
+  updateNumber(GPU_LOAD, prevC[1].x - halfw + 12, prevC[1].y - 15, CYAN);
   plotHist(GDDR, prevC[1].x - halfw - 100, prevC[1].y - 40, BLUE);
 }
 
-/*****  Receiving serial port message,  *****/
+/*****  Receiving serial port messages,  *****/
 
 unsigned long prevTime, currTime;
 void recvWithStartEndMarkers() {
@@ -319,6 +317,7 @@ void recvWithStartEndMarkers() {
 
 /***** The two core functions of Arduino.  *****/
 
+boolean enteredS3 = false;
 void setup(void) {
   Serial.begin(115200);
   Serial.println("<Arduino is ready!>");
